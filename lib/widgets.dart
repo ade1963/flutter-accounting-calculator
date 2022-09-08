@@ -5,8 +5,13 @@ class CalcStyle {
   static const double displayFontSize = 80;
   static const double expressionFontSize = 32; //should be devide by 4
   static const double histButtonFontSize = 30;
+  static const Color backGround = Color(0x7FAACD82);
+  static const List<Color> gradientColors = [
+    Color(0xFF009688),
+    Color(0xFF80CBC4),
+    Color(0xFFB2DFDB),
+  ];
 }
-
 
 Widget buttonGradient(String label, op,
     {double fontSize = CalcStyle.buttonFontSize}) {
@@ -18,11 +23,7 @@ Widget buttonGradient(String label, op,
           child: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: <Color>[
-                  Color(0xFF009688),
-                  Color(0xFF80CBC4),
-                  Color(0xFFB2DFDB),
-                ],
+                colors: CalcStyle.gradientColors,
               ),
             ),
           ),
@@ -32,16 +33,15 @@ Widget buttonGradient(String label, op,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.all(4.0),
             primary: Colors.black,
-            //textStyle: TextStyle(fontSize: fontSize),
           ),
           onPressed: () => op(label),
           child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
-            '$label',
-            style: TextStyle(fontSize: fontSize),
-            maxLines: 1,
-          )),
+                '$label',
+                style: TextStyle(fontSize: fontSize),
+                maxLines: 1,
+              )),
         )),
       ],
     ),

@@ -6,7 +6,7 @@ import 'package:tele_web_app/tele_web_app.dart';
 import 'package:intl/intl.dart';
 
 String? init_value;
-const int FIXED_DIGITS = 6; // round up to 6 places after dot
+const int ROUND_UP_DIGITS = 6; // round up to 6 places after dot
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -59,7 +59,7 @@ class CalAppState extends State<MyApp> {
     tele.ready();
   }
 
-  void clearValue(String text) {
+  void _clearValue(String text) {
     setState(() {
       _input = '';
       _result = '0';
@@ -67,7 +67,7 @@ class CalAppState extends State<MyApp> {
     });
   }
 
-  void clearHistory(String text) {
+  void _clearHistory(String text) {
     setState(() {
       _history.clear();
     });
@@ -75,7 +75,7 @@ class CalAppState extends State<MyApp> {
 
   bool _isDigit(String s, int idx) => (s.codeUnitAt(idx) ^ 0x30) <= 9;
 
-  void math(String text) {
+  void _binaryOp(String text) {
     if (_expression.isNotEmpty &&
         _input.isEmpty &&
         (!_isDigit(_expression, _expression.length - 1))) {
@@ -83,7 +83,7 @@ class CalAppState extends State<MyApp> {
     }
 
     if (_expression.isNotEmpty && _input.isNotEmpty) {
-      eval('');
+      _eval('');
     }
 
     setState(() {
@@ -93,8 +93,42 @@ class CalAppState extends State<MyApp> {
     });
   }
 
-  void eval(String text) {
+  // 1/x pressed
+  void _inverseOp(String text) {
+
+    if (_input.isEmpty && _result.isNotEmpty) {
+      _input = _result;
+    }
+    if (_input.isNotEmpty) {
+      _input = '(1/$_input)';
+      _eval('');
+    }
+
+    setState(() {
+      _expression = '';
+      _input = '';
+    });
+  }
+
+  void _sqrtOp(String text) {
+
+    if (_input.isEmpty && _result.isNotEmpty) {
+      _input = _result;
+    }
+    if (_input.isNotEmpty) {
+      _input = 'sqrt($_input)';
+      _eval('');
+    }
+
+    setState(() {
+      _expression = '';
+      _input = '';
+    });
+  }
+
+  void _eval(String text) {
     String tmpExpr = _expression + _input;
+    print(tmpExpr);
     Parser p = Parser();
     Expression exp = p.parse(tmpExpr);
     ContextModel cm = ContextModel();
@@ -105,7 +139,7 @@ class CalAppState extends State<MyApp> {
       if (eval == double.infinity) {
         eval = 0;
       }
-      _result = num.tryParse(eval.toStringAsFixed(FIXED_DIGITS)).toString();
+      _result = num.tryParse(eval.toStringAsFixed(ROUND_UP_DIGITS)).toString();
       if (_result.indexOf('e') > 0) {
         _result = '0';
       }
@@ -115,7 +149,7 @@ class CalAppState extends State<MyApp> {
     });
   }
 
-  void digitPressed(String text) {
+  void _digitPressed(String text) {
     setState(() => _input += text);
   }
 
@@ -127,7 +161,7 @@ class CalAppState extends State<MyApp> {
     setState(() => _input = text);
   }
 
-  void pointPressed(String text) {
+  void _pointPressed(String text) {
     setState(() {
       if (_input == '') {
         _input = '0.';
@@ -138,7 +172,6 @@ class CalAppState extends State<MyApp> {
   }
 
   Widget _historyList(List<String> _history) {
-
     //extract number after '='
     List<String> entries = _history.map((x) {
       var lst = x.split('=');
@@ -146,25 +179,23 @@ class CalAppState extends State<MyApp> {
     }).toList();
 
     return ListView.builder(
-        //padding: const EdgeInsets.only(top: 8.0),
         itemCount: entries.length,
         itemBuilder: (BuildContext context, int index) {
           return Container(
             margin: EdgeInsets.only(top: 4),
             child: Center(
-                child: Column(
-                    children: <Widget>[
-                  Container(
-                    height: CalcStyle.histButtonFontSize,
-                    child: fittedTextBox(
-                        _history[index], CalcStyle.histButtonFontSize),
-                  ),
-                  Container(
-                    height: CalcStyle.histButtonFontSize,
-                    child: buttonGradient(entries[index], inputOverwrite,
-                        fontSize: CalcStyle.histButtonFontSize),
-                  ),
-                ])),
+                child: Column(children: <Widget>[
+              Container(
+                height: CalcStyle.histButtonFontSize,
+                child: fittedTextBox(
+                    _history[index], CalcStyle.histButtonFontSize),
+              ),
+              Container(
+                height: CalcStyle.histButtonFontSize,
+                child: buttonGradient(entries[index], inputOverwrite,
+                    fontSize: CalcStyle.histButtonFontSize),
+              ),
+            ])),
           );
         });
   }
@@ -175,20 +206,19 @@ class CalAppState extends State<MyApp> {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           brightness: Brightness.light,
-          //primaryColor: Colors.lightBlue[800], - we use primarySwatch instead
+          scaffoldBackgroundColor: CalcStyle.backGround,
           fontFamily: 'Georgia',
         ),
         home: Scaffold(
             body: Container(
                 margin:
                     const EdgeInsets.only(left: 5.0, right: 5.0, bottom: 10.0),
-                color: Colors.white,
                 child: SafeArea(
                     child: LayoutGrid(
                         areas: '''
               expr    expr    expr    expr     expr
               display display display display  display
-              CE      CH   empty   empty    history
+              CE      CH   inverse   sqrt    history
               seven   eight   nine    divide   history
               four    five    six     multiply history
               one     two     three   minus    history
@@ -208,25 +238,26 @@ class CalAppState extends State<MyApp> {
                                       .format(double.parse(_display)),
                                   CalcStyle.displayFontSize)
                               .inGridArea('display'),
-                          buttonGradient('CE', clearValue).inGridArea('CE'),
-                          buttonGradient('CH', clearHistory).inGridArea('CH'),
-                          buttonGradient('.', pointPressed).inGridArea('point'),
-                          buttonGradient('0', digitPressed).inGridArea('zero'),
-                          buttonGradient('1', digitPressed).inGridArea('one'),
-                          buttonGradient('2', digitPressed).inGridArea('two'),
-                          buttonGradient('3', digitPressed).inGridArea('three'),
-                          buttonGradient('4', digitPressed).inGridArea('four'),
-                          buttonGradient('5', digitPressed).inGridArea('five'),
-                          buttonGradient('6', digitPressed).inGridArea('six'),
-                          buttonGradient('7', digitPressed).inGridArea('seven'),
-                          buttonGradient('8', digitPressed).inGridArea('eight'),
-                          buttonGradient('9', digitPressed).inGridArea('nine'),
-                          buttonGradient('=', eval).inGridArea('equals'),
-                          buttonGradient('/', math).inGridArea('divide'),
-                          buttonGradient('*', math).inGridArea('multiply'),
-                          buttonGradient('-', math).inGridArea('minus'),
-                          buttonGradient('+', math).inGridArea('plus'),
+                          buttonGradient('CE', _clearValue).inGridArea('CE'),
+                          buttonGradient('CH', _clearHistory).inGridArea('CH'),
+                          buttonGradient('1/x', _inverseOp).inGridArea('inverse'),
+                          buttonGradient('√x', _sqrtOp).inGridArea('sqrt'),
+                          buttonGradient('.', _pointPressed).inGridArea('point'),
+                          buttonGradient('0', _digitPressed).inGridArea('zero'),
+                          buttonGradient('1', _digitPressed).inGridArea('one'),
+                          buttonGradient('2', _digitPressed).inGridArea('two'),
+                          buttonGradient('3', _digitPressed).inGridArea('three'),
+                          buttonGradient('4', _digitPressed).inGridArea('four'),
+                          buttonGradient('5', _digitPressed).inGridArea('five'),
+                          buttonGradient('6', _digitPressed).inGridArea('six'),
+                          buttonGradient('7', _digitPressed).inGridArea('seven'),
+                          buttonGradient('8', _digitPressed).inGridArea('eight'),
+                          buttonGradient('9', _digitPressed).inGridArea('nine'),
+                          buttonGradient('=', _eval).inGridArea('equals'),
+                          buttonGradient('/', _binaryOp).inGridArea('divide'),
+                          buttonGradient('*', _binaryOp).inGridArea('multiply'),
+                          buttonGradient('-', _binaryOp).inGridArea('minus'),
+                          buttonGradient('+', _binaryOp).inGridArea('plus'),
                         ])))));
   }
 }
-
